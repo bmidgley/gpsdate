@@ -31,9 +31,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include <unistd.h>
+#include <string.h>
 #include <sys/time.h>
 
 #include <gps.h>
+
+#define NUM_RETRIES	60	/* Number of gpsd re-connects */
+#define RETRY_SLEEP	1	/* Seconds to sleep between re-connects */
 
 static struct gps_data_t gpsdata;
 
@@ -51,20 +56,33 @@ static void callback(struct gps_data_t *gpsdata)
 
 	rc = settimeofday(&tv, NULL);
 	gps_close(gpsdata);
-	if (rc == 0)
+	if (rc == 0) {
+		printf("Successfully set RTC time to GPSD time\n");
 		exit(EXIT_SUCCESS);
-	else
+	} else {
+		fprintf(stderr, "Error setting RTC: %d (%s)\n",
+			errno, strerror(errno));
 		exit(EXIT_FAILURE);
+	}
 }
 
 int main(int argc, char **argv)
 {
 	char *host = "localhost";
+	int i, rc;
 
 	if (argc > 1)
 		host = argv[1];
 
-	if (gps_open(host, DEFAULT_GPSD_PORT, &gpsdata)) {
+	for (i = 1; i <= NUM_RETRIES; i++) {
+		printf("Attempt #%d to connect to gpsd at %s...\n", i, host);
+		rc = gps_open(host, DEFAULT_GPSD_PORT, &gpsdata);
+		if (!rc)
+			break;
+		sleep(RETRY_SLEEP);
+	}
+
+	if (rc) {
 		fprintf(stderr, "no gpsd running or network error: %d, %s\n",
 			errno, gps_errstr(errno));
 		exit(EXIT_FAILURE);
