@@ -33,6 +33,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <string.h>
+#include <syslog.h>
 #include <sys/time.h>
 
 #include <gps.h>
@@ -57,11 +58,13 @@ static void callback(struct gps_data_t *gpsdata)
 	rc = settimeofday(&tv, NULL);
 	gps_close(gpsdata);
 	if (rc == 0) {
-		printf("Successfully set RTC time to GPSD time\n");
+		syslog(LOG_NOTICE, "Successfully set RTC time to GPSD time\n");
+		closelog();
 		exit(EXIT_SUCCESS);
 	} else {
-		fprintf(stderr, "Error setting RTC: %d (%s)\n",
+		syslog(LOG_ERR, "Error setting RTC: %d (%s)\n",
 			errno, strerror(errno));
+		closelog();
 		exit(EXIT_FAILURE);
 	}
 }
@@ -70,6 +73,8 @@ int main(int argc, char **argv)
 {
 	char *host = "localhost";
 	int i, rc;
+
+	openlog("gpsdate", LOG_PERROR, LOG_CRON);
 
 	if (argc > 1)
 		host = argv[1];
@@ -83,8 +88,9 @@ int main(int argc, char **argv)
 	}
 
 	if (rc) {
-		fprintf(stderr, "no gpsd running or network error: %d, %s\n",
+		syslog(LOG_ERR, "no gpsd running or network error: %d, %s\n",
 			errno, gps_errstr(errno));
+		closelog();
 		exit(EXIT_FAILURE);
 	}
 
@@ -94,5 +100,6 @@ int main(int argc, char **argv)
 
 	gps_close(&gpsdata);
 
+	closelog();
 	exit(EXIT_SUCCESS);
 }
