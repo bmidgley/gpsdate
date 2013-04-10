@@ -1,9 +1,8 @@
 
 CFLAGS=-Wall -O2
-LDFLAGS=-lgps
 
 gpsdate: gpsdate.o
-	$(CC) $(LDFLAGS) -o $@ $^
+	$(CC) $(LDFLAGS) -lgps -o $@ $^
 
 %.o: %.c
 	$(CC) $(CFLAGS) -o $@ -c $^
