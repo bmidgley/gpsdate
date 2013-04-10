@@ -1,0 +1,73 @@
+#!/bin/sh
+#/etc/init.d/gpsdate: start gpsdate daemon.
+
+### BEGIN INIT INFO
+# Provides:          gpsdate
+# Short-Description: Start software gpsdate
+# Required-Start:    $all
+# Required-Stop:     $all
+# Should-Start:      
+# Should-Stop:       
+# Default-Start:     S
+# Default-Stop:
+### END INIT INFO
+
+PATH=/bin:/usr/bin:/sbin:/usr/sbin
+
+test -x /usr/sbin/gpsdate || exit 0
+
+# For configuration of the init script use the file
+# /etc/default/gpsdate, do not edit this init script.
+
+# Set run_gpsdate to 1 to start gpsdate or 0 to disable it.
+
+# Specify additional gpsdate options here (see manpage).
+gpsdate_options=""
+
+# Specify module to load
+gpsdate_module="none"
+
+run_gpsdate=1
+
+[ -e /etc/default/gpsdate ] && . /etc/default/gpsdate
+
+NAME=gpsdate
+
+DAEMON=/usr/sbin/gpsdate
+
+case "$1" in
+  start)
+    if [ $run_gpsdate = 1 ]
+    then
+        # do we have to load a module?
+        [ ${gpsdate_module:-none} != "none" ] && /sbin/modprobe $gpsdate_module
+
+        # Unconditionally start gpsdate daemon because we want to run it even
+        # if wd_keepalive wasn't running
+        echo "Starting gpsdate..."
+        $DAEMON $gpsdate_options
+    fi
+    ;;
+
+  stop)
+    ;;
+
+  restart)
+    $0 force-reload
+    ;;
+
+  force-reload)
+    if [ $run_gpsdate = 0 ]; then exit 0; fi
+    echo "Restarting ${NAME}"
+    stop
+    start
+    ;;
+
+  *)
+    echo "Usage: /etc/init.d/gpsdate {start|stop|restart|force-reload}"
+    exit 1
+
+esac
+
+exit 0
+
