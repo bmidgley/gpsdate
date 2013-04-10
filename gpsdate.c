@@ -46,6 +46,7 @@ static struct gps_data_t gpsdata;
 static void callback(struct gps_data_t *gpsdata)
 {
 	struct timeval tv;
+	time_t time;
 	int rc;
 
 	if (!(gpsdata->set & TIME_SET))
@@ -55,10 +56,13 @@ static void callback(struct gps_data_t *gpsdata)
 	/* FIXME: use the fractional part for microseconds */
 	tv.tv_usec = 0;
 
+	time = tv.tv_sec;
+
 	rc = settimeofday(&tv, NULL);
 	gps_close(gpsdata);
 	if (rc == 0) {
-		syslog(LOG_NOTICE, "Successfully set RTC time to GPSD time\n");
+		syslog(LOG_NOTICE, "Successfully set RTC time to GPSD time:"
+			" %s", ctime(&time));
 		closelog();
 		exit(EXIT_SUCCESS);
 	} else {
