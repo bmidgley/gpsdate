@@ -152,7 +152,10 @@ int main(int argc, char **argv)
 
 	gps_stream(&gpsdata, WATCH_ENABLE|WATCH_JSON, NULL);
 
-	gps_mainloop(&gpsdata, 5000000, callback);
+	/* We run in an endless loop.  The only reasonable way to exit is after
+	 * a correct GPS timestamp has been received in callback() */
+	while (1)
+		gps_mainloop(&gpsdata, INT_MAX, callback);
 
 	gps_close(&gpsdata);
 
