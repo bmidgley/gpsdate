@@ -34,7 +34,10 @@
 #include <unistd.h>
 #include <string.h>
 #include <syslog.h>
+
 #include <sys/time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include <gps.h>
 
@@ -73,6 +76,53 @@ static void callback(struct gps_data_t *gpsdata)
 	}
 }
 
+static int osmo_daemonize(void)
+{
+	int rc;
+	pid_t pid, sid;
+
+	/* Check if parent PID == init, in which case we are already a daemon */
+	if (getppid() == 1)
+		return -EEXIST;
+
+	/* Fork from the parent process */
+	pid = fork();
+	if (pid < 0) {
+		/* some error happened */
+		return pid;
+	}
+
+	if (pid > 0) {
+		/* if we have received a positive PID, then we are the parent
+		 * and can exit */
+		exit(0);
+	}
+
+	/* FIXME: do we really want this? */
+	umask(0);
+
+	/* Create a new session and set process group ID */
+	sid = setsid();
+	if (sid < 0)
+		return sid;
+
+	/* Change to the /tmp directory, which prevents the CWD from being locked
+	 * and unable to remove it */
+	rc = chdir("/tmp");
+	if (rc < 0)
+		return rc;
+
+	/* Redirect stdio to /dev/null */
+/* since C89/C99 says stderr is a macro, we can safely do this! */
+#ifdef stderr
+	freopen("/dev/null", "r", stdin);
+	freopen("/dev/null", "w", stdout);
+	freopen("/dev/null", "w", stderr);
+#endif
+
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	char *host = "localhost";
@@ -97,6 +147,8 @@ int main(int argc, char **argv)
 		closelog();
 		exit(EXIT_FAILURE);
 	}
+
+	osmo_daemonize();
 
 	gps_stream(&gpsdata, WATCH_ENABLE|WATCH_JSON, NULL);
 
