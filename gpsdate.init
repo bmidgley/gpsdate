@@ -50,6 +50,9 @@ case "$1" in
     ;;
 
   stop)
+    # This should use start-stop-daemon and create a pid file
+    echo "Stopping gpsdate in a brutal way"
+    killall -9 gpsdate
     ;;
 
   restart)
