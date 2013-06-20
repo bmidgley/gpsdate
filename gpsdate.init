@@ -59,8 +59,8 @@ case "$1" in
   force-reload)
     if [ $run_gpsdate = 0 ]; then exit 0; fi
     echo "Restarting ${NAME}"
-    stop
-    start
+    $0 stop
+    $0 start
     ;;
 
   *)
