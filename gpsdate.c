@@ -123,6 +123,26 @@ static int osmo_daemonize(void)
 	return 0;
 }
 
+/* local copy, as the libgps official version ignores gps_read() result */
+static int my_gps_mainloop(struct gps_data_t *gdata,
+			   int timeout,
+			   void (*hook)(struct gps_data_t *gdata))
+{
+	int rc;
+
+	for (;;) {
+		if (!gps_waiting(gdata, timeout)) {
+			return -1;
+		} else {
+			rc = gps_read(gdata);
+			if (rc < 0)
+				return rc;
+			(*hook)(gdata);
+		}
+	}
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	char *host = "localhost";
@@ -155,7 +175,7 @@ int main(int argc, char **argv)
 	/* We run in an endless loop.  The only reasonable way to exit is after
 	 * a correct GPS timestamp has been received in callback() */
 	while (1)
-		gps_mainloop(&gpsdata, INT_MAX, callback);
+		my_gps_mainloop(&gpsdata, INT_MAX, callback);
 
 	gps_close(&gpsdata);
 
