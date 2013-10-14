@@ -143,39 +143,82 @@ static int my_gps_mainloop(struct gps_data_t *gdata,
 	return 0;
 }
 
+static int attempt_reconnect(const char *host, const char *port,
+			     struct gps_data_t *gpsdata)
+{
+	int rc;
+
+	rc = gps_open(host, port, gpsdata);
+	if (rc)
+		return -1;
+
+	syslog(LOG_INFO, "(re)connected to gpsd\n");
+
+	gps_stream(gpsdata, WATCH_ENABLE|WATCH_JSON, NULL);
+
+	return 0;
+}
+
+enum state {
+	S_CONNECTED,
+	S_RECONNECT,
+};
+
 int main(int argc, char **argv)
 {
 	char *host = "localhost";
 	int i, rc;
+	enum state state;
 
 	openlog("gpsdate", LOG_PERROR, LOG_CRON);
 
 	if (argc > 1)
 		host = argv[1];
 
+	/* attempt up to NUM_RETRIES times to connect to gpsd while we are
+	 * still running in foreground.  The idea is that we will block the
+	 * boot process (init scripts) until we have a connection */
 	for (i = 1; i <= NUM_RETRIES; i++) {
 		printf("Attempt #%d to connect to gpsd at %s...\n", i, host);
-		rc = gps_open(host, DEFAULT_GPSD_PORT, &gpsdata);
-		if (!rc)
+		rc = attempt_reconnect(host, DEFAULT_GPSD_PORT, &gpsdata);
+		if (rc >= 0)
 			break;
 		sleep(RETRY_SLEEP);
 	}
 
-	if (rc) {
+	if (rc < 0) {
 		syslog(LOG_ERR, "no gpsd running or network error: %d, %s\n",
 			errno, gps_errstr(errno));
 		closelog();
 		exit(EXIT_FAILURE);
 	}
+	state = S_CONNECTED;
 
 	osmo_daemonize();
 
-	gps_stream(&gpsdata, WATCH_ENABLE|WATCH_JSON, NULL);
-
 	/* We run in an endless loop.  The only reasonable way to exit is after
 	 * a correct GPS timestamp has been received in callback() */
-	while (1)
-		my_gps_mainloop(&gpsdata, INT_MAX, callback);
+	while (1) {
+		switch (state) {
+		case S_CONNECTED:
+			rc = my_gps_mainloop(&gpsdata, INT_MAX, callback);
+			if (rc < 1) {
+				syslog(LOG_ERR, "connection to gpsd was "
+					"closed: %d, reconnecting\n", rc);
+				gps_close(&gpsdata);
+				state = S_RECONNECT;
+			}
+			break;
+		case S_RECONNECT:
+			rc = attempt_reconnect(host, DEFAULT_GPSD_PORT,
+					       &gpsdata);
+			if (rc < 0)
+				sleep(RETRY_SLEEP);
+			else
+				state = S_CONNECTED;
+			break;
+		}
+	}
 
 	gps_close(&gpsdata);
 
