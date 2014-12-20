@@ -1,5 +1,5 @@
 /* gpsdate - small utility to set system RTC based on gpsd time 
- * (C) 2013 by sysmocom - s.f.m.c. GmbH, Author: Harald Welte
+ * (C) 2013-2015 by sysmocom - s.f.m.c. GmbH, Author: Harald Welte
  * All Rights Reserved
  *
  * This program is free software; you can redistribute it and/or modify
@@ -34,6 +34,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <syslog.h>
+#include <getopt.h>
 
 #include <sys/time.h>
 #include <sys/types.h>
@@ -167,23 +168,48 @@ enum state {
 int main(int argc, char **argv)
 {
 	char *host = "localhost";
+	int num_retries = NUM_RETRIES;
+	int retry_sleep = RETRY_SLEEP;
 	int i, rc;
 	enum state state;
 
 	openlog("gpsdate", LOG_PERROR, LOG_CRON);
 
-	if (argc > 1)
-		host = argv[1];
+	while (1) {
+		int option_index = 0, c;
+		static struct option long_options[] = {
+			{"num-retries", 1, 0, 'n'},
+			{"retry-sleep", 1, 0, 's'},
+			{0,0,0,0}
+		};
+
+		c = getopt_long(argc, argv, "n:s:",
+				long_options, &option_index);
+		if (c == -1)
+			break;
+
+		switch (c) {
+		case 'n':
+			num_retries = atoi(optarg);
+			break;
+		case 's':
+			retry_sleep = atoi(optarg);
+			break;
+		}
+	}
+
+	if (optind < argc)
+		host = argv[optind];
 
 	/* attempt up to NUM_RETRIES times to connect to gpsd while we are
 	 * still running in foreground.  The idea is that we will block the
 	 * boot process (init scripts) until we have a connection */
-	for (i = 1; i <= NUM_RETRIES; i++) {
+	for (i = 1; i <= num_retries; i++) {
 		printf("Attempt #%d to connect to gpsd at %s...\n", i, host);
 		rc = attempt_reconnect(host, DEFAULT_GPSD_PORT, &gpsdata);
 		if (rc >= 0)
 			break;
-		sleep(RETRY_SLEEP);
+		sleep(retry_sleep);
 	}
 
 	if (rc < 0) {
