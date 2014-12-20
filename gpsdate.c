@@ -168,6 +168,7 @@ enum state {
 int main(int argc, char **argv)
 {
 	char *host = "localhost";
+	char *port = DEFAULT_GPSD_PORT;
 	int num_retries = NUM_RETRIES;
 	int retry_sleep = RETRY_SLEEP;
 	int i, rc;
@@ -199,14 +200,16 @@ int main(int argc, char **argv)
 	}
 
 	if (optind < argc)
-		host = argv[optind];
+		host = argv[optind++];
+	if (optind < argc)
+		port = argv[optind++];
 
 	/* attempt up to NUM_RETRIES times to connect to gpsd while we are
 	 * still running in foreground.  The idea is that we will block the
 	 * boot process (init scripts) until we have a connection */
 	for (i = 1; i <= num_retries; i++) {
 		printf("Attempt #%d to connect to gpsd at %s...\n", i, host);
-		rc = attempt_reconnect(host, DEFAULT_GPSD_PORT, &gpsdata);
+		rc = attempt_reconnect(host, port, &gpsdata);
 		if (rc >= 0)
 			break;
 		sleep(retry_sleep);
@@ -236,8 +239,7 @@ int main(int argc, char **argv)
 			}
 			break;
 		case S_RECONNECT:
-			rc = attempt_reconnect(host, DEFAULT_GPSD_PORT,
-					       &gpsdata);
+			rc = attempt_reconnect(host, port, &gpsdata);
 			if (rc < 0)
 				sleep(RETRY_SLEEP);
 			else
