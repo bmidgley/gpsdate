@@ -45,6 +45,7 @@
 #define NUM_RETRIES	60	/* Number of gpsd re-connects */
 #define RETRY_SLEEP	1	/* Seconds to sleep between re-connects */
 
+static int no_detach = 0;
 static struct gps_data_t gpsdata;
 
 static void callback(struct gps_data_t *gpsdata)
@@ -181,10 +182,11 @@ int main(int argc, char **argv)
 		static struct option long_options[] = {
 			{"num-retries", 1, 0, 'n'},
 			{"retry-sleep", 1, 0, 's'},
+			{"no-detach", 0, 0, 'd'},
 			{0,0,0,0}
 		};
 
-		c = getopt_long(argc, argv, "n:s:",
+		c = getopt_long(argc, argv, "n:s:d",
 				long_options, &option_index);
 		if (c == -1)
 			break;
@@ -195,6 +197,9 @@ int main(int argc, char **argv)
 			break;
 		case 's':
 			retry_sleep = atoi(optarg);
+			break;
+		case 'd':
+			no_detach = 1;
 			break;
 		}
 	}
@@ -223,7 +228,8 @@ int main(int argc, char **argv)
 	}
 	state = S_CONNECTED;
 
-	osmo_daemonize();
+	if (!no_detach)
+		osmo_daemonize();
 
 	/* We run in an endless loop.  The only reasonable way to exit is after
 	 * a correct GPS timestamp has been received in callback() */

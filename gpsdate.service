@@ -2,6 +2,6 @@
 Description=Set time based on GPS
 
 [Service]
-Type=forking
+Type=simple
 EnvironmentFile=/etc/default/gpsdate
-ExecStart=/usr/sbin/gpsdate ${GPSDATE_HOST} ${GPSDATE_PORT}
+ExecStart=/usr/sbin/gpsdate --no-detach ${GPSDATE_HOST} ${GPSDATE_PORT}
