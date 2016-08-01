@@ -45,7 +45,7 @@ case "$1" in
         # Unconditionally start gpsdate daemon because we want to run it even
         # if wd_keepalive wasn't running
         echo "Starting gpsdate..."
-        $DAEMON $gpsdate_options
+        $DAEMON ${GPSDATE_HOST} ${GPSDATE_PORT} $gpsdate_options
     fi
     ;;
 
